@@ -40,7 +40,9 @@ Treat download as an observed job with recovery, not a fire-and-forget client ac
 ### Step 0: Load safeguards and connection
 
 Read `$KIT_DIR/references/acquisition-policy.md` and resolved configuration. Verify
-qBittorrent login before adding tasks. Query existing hashes and mark them as
+qBittorrent login before adding tasks. If first-run initialization is needed, keep the
+WebUI on loopback and credentials in the operating system credential store. Query
+existing hashes and mark them as
 pre-existing; never delete, relocate, or retag those tasks.
 
 ### Step 1: Capacity preflight

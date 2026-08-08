@@ -44,6 +44,9 @@ python3 scripts/media_config.py init --write
 
 ## qBittorrent 连接
 
+首次调用会安装缺失的稳定版依赖，并将 WebUI 限定在本机回环地址。已有兼容
+客户端时直接复用。密码保存在系统凭据中，再通过环境变量注入当前任务。
+
 ```bash
 export QBITTORRENT_URL="http://127.0.0.1:8080"
 export QBITTORRENT_USERNAME="admin"

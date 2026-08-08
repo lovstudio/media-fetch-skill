@@ -80,11 +80,15 @@ Load the selected module completely before acting:
 
 1. Resolve `SKILL_DIR`, `KIT_DIR`, configuration, qBittorrent connectivity, and
    `ffprobe` availability.
-2. Preserve existing client tasks. Every task created by this Skill must receive a
+2. On first use, bootstrap missing stable dependencies through the platform's native
+   package manager, bind the qBittorrent WebUI to loopback only, generate a strong
+   credential, and store it in the operating system credential store. Reuse an
+   existing compatible client instead when present.
+3. Preserve existing client tasks. Every task created by this Skill must receive a
    unique job tag and an isolated probe directory.
-3. Select `full` for a title request, `choose` for comparison only, `download-known`
+4. Select `full` for a title request, `choose` for comparison only, `download-known`
    for supplied links, `resume` for an existing job, or `verify` for a local file.
-4. Read `$KIT_DIR/references/candidate-schema.md`, then validate all handoff JSON.
+5. Read `$KIT_DIR/references/candidate-schema.md`, then validate all handoff JSON.
 
 ### Step 1: Resolve the requested work
 
