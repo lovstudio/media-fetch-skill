@@ -1,0 +1,87 @@
+---
+name: lovstudio-media-selection
+description: >
+  比较媒体候选的剪辑版本、画质、编码、体积、音轨、字幕、活跃度与证据，自动选出最合适版本；适用于“哪个版本最值得下”、"choose the best compact release"。
+license: MIT
+metadata:
+  author: lovstudio
+  version: "0.1.0"
+  tags:
+    - release-ranking
+    - video-quality
+    - subtitle-selection
+  compatibility: "Python 3.9+; consumes the Media Fetch candidate JSON schema."
+  dependencies:
+    - python>=3.9
+---
+
+# Media Selection
+
+Choose for viewing value, not label prestige: confirm the cut, then balance useful
+detail, efficient encoding, size, language coverage, current health, and evidence.
+
+## Triggers
+
+### Activate when
+
+- 用户说“哪个版本最值得下”“画质尽量高但不要太大”。
+- 用户希望导演剪辑版、加长版、原版或完整版，并偏好中英字幕。
+- The user asks to choose the best compact release or compare multiple cuts.
+
+### Do not activate when
+
+- 用户只给出一个链接且明确不要比较其他版本。
+- 用户要求开始下载但尚未完成磁盘容量预检。
+- The user asks only to inspect a completed local file.
+
+## Workflow (MANDATORY)
+
+### Step 0: Load policy and inputs
+
+Read `$KIT_DIR/references/quality-policy.md`,
+`$KIT_DIR/references/candidate-schema.md`, and resolved preferences. Validate the
+candidate JSON before ranking.
+
+### Step 1: Verify identity before quality
+
+Reject or penalize candidates for the wrong title, year, season, episode, or cut.
+Edition labels supported only by filenames remain provisional. Compare candidate
+duration to reliable edition runtimes when available.
+
+### Step 2: Rank deterministically
+
+Run:
+
+```bash
+python3 "$KIT_DIR/scripts/rank_candidates.py" \
+  --input CANDIDATES_JSON \
+  --output DECISION_JSON
+```
+
+Apply explicit user caps before defaults. Prefer efficient 2160p when its size and
+source quality are credible; otherwise prefer strong 1080p HEVC/AV1. Penalize tiny
+files with implausible quality claims and oversized remuxes in balanced mode.
+
+### Step 3: Handle editions as a content decision
+
+Director's cut, extended, uncut, complete, restored, and theatrical editions are not
+interchangeable quality levels. Ask the user to choose when the cuts contain materially
+different scenes or intent and no preference resolves the difference.
+
+### Step 4: Handle subtitles and audio
+
+Prefer verified embedded Simplified Chinese and English subtitles. Bilingual filename
+markers improve discovery rank but do not count as verified streams. Prefer original
+audio; treat dubs as additional value rather than a replacement unless requested.
+
+### Step 5: Produce a concise decision
+
+- Auto-select when `choice_required=false`.
+- When choice is needed, present at most three options with edition, resolution/codec,
+  size, subtitle status, runtime evidence, and health.
+- Preserve the complete scored list in `DECISION_JSON` for acquisition fallback.
+
+## Dependencies
+
+Python 3.9+. No network dependency after the candidate manifest and edition evidence
+are complete.
