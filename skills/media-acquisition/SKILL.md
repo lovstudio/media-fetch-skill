@@ -14,8 +14,8 @@ metadata:
     - failover
   compatibility: "Python 3.9+; qBittorrent 5.x Web API with aria2 1.36+ as resumable fallback."
   dependencies:
-    - python>=3.9
-    - qbittorrent>=5.0
+    - python
+    - qbittorrent
 ---
 
 # Media Acquisition

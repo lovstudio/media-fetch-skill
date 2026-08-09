@@ -12,7 +12,7 @@ metadata:
     - subtitle-selection
   compatibility: "Python 3.9+; consumes the Media Fetch candidate JSON schema and separates advertised from observed health."
   dependencies:
-    - python>=3.9
+    - python
 ---
 
 # Media Selection

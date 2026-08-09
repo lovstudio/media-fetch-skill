@@ -17,10 +17,10 @@ metadata:
   card_standard: "lovstudio/skill-card/v1"
   compatibility: "Portable Agent Skills format; Python 3.9+, qBittorrent 5.x Web API, aria2 optional, and ffprobe recommended."
   dependencies:
-    - python>=3.9
+    - python
     - pyyaml
-    - qbittorrent>=5.0
-    - aria2>=1.36 (optional fallback)
+    - qbittorrent
+    - aria2
     - ffprobe
 ---
 

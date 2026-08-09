@@ -12,7 +12,7 @@ metadata:
     - subtitle-audit
   compatibility: "Python 3.9+ and ffprobe from FFmpeg; optional exact-release subtitle handoff."
   dependencies:
-    - python>=3.9
+    - python
     - ffprobe
 ---
 

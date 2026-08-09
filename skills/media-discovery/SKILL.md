@@ -12,7 +12,7 @@ metadata:
     - candidate-normalization
   compatibility: "Agent runtime with web research; optional qBittorrent search API, Rats Search, and Torrent inputs."
   dependencies:
-    - python>=3.9
+    - python
 ---
 
 # Media Discovery
