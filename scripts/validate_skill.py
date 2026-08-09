@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -28,6 +29,8 @@ SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*]\(([^)]+)\)")
 SKILL_PATH_RE = re.compile(r"\$(SKILL_DIR|KIT_DIR)/([A-Za-z0-9_./-]+)")
+CARD_STANDARD = "lovstudio/skill-card/v1"
+PRICING_CARD_SCHEMA = "lovstudio/pricing-card/v1"
 
 
 class ValidationFailure(Exception):
@@ -152,6 +155,122 @@ def load_yaml(path: Path, errors: list[str]) -> dict[str, Any] | None:
     return data
 
 
+def has_content(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(has_content(item) for item in value)
+    if isinstance(value, dict):
+        return any(has_content(item) for item in value.values())
+    return value is not None
+
+
+def contains_placeholder(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(re.search(r"\bTODO\b|\{[^}]+\}", value, re.I))
+    if isinstance(value, list):
+        return any(contains_placeholder(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains_placeholder(item) for item in value.values())
+    return False
+
+
+def validate_card_bundle(skill_root: Path, errors: list[str]) -> None:
+    card_path = skill_root / "skill-card.yaml"
+    card_doc_path = skill_root / "skill-card.md"
+    cases_path = skill_root / "cases" / "cases.json"
+    pricing_path = skill_root / "pricing-card.yaml"
+    for path in (card_path, card_doc_path, cases_path, pricing_path):
+        if not path.is_file():
+            errors.append(f"{path}: required Skill trust-bundle file is missing")
+
+    card = load_yaml(card_path, errors) if card_path.is_file() else None
+    if card is not None:
+        if card.get("schema") != CARD_STANDARD:
+            errors.append(f"{card_path}: schema must be {CARD_STANDARD}")
+        required = (
+            "description", "owner", "license", "use_case", "deployment",
+            "requirements", "risks", "references", "output", "version",
+            "ethical_considerations", "dimensions", "pricing", "distribution",
+        )
+        for key in required:
+            if key not in card or not has_content(card.get(key)):
+                errors.append(f"{card_path}: required field '{key}' is missing or empty")
+        dimensions = card.get("dimensions")
+        if not isinstance(dimensions, list) or len(dimensions) < 3:
+            errors.append(f"{card_path}: dimensions need at least three entries")
+        else:
+            ids: set[str] = set()
+            for index, dimension in enumerate(dimensions):
+                label = f"{card_path}: dimensions[{index}]"
+                if not isinstance(dimension, dict):
+                    errors.append(f"{label}: expected a mapping")
+                    continue
+                dimension_id = compact_text(dimension.get("id"))
+                if not dimension_id or dimension_id in ids:
+                    errors.append(f"{label}: id is required and unique")
+                ids.add(dimension_id)
+                for key in ("label", "description", "evidence"):
+                    if not compact_text(dimension.get(key)):
+                        errors.append(f"{label}: '{key}' is required")
+        risks = card.get("risks")
+        if not isinstance(risks, list) or not risks:
+            errors.append(f"{card_path}: risks need risk and mitigation entries")
+        else:
+            for index, risk in enumerate(risks):
+                if not isinstance(risk, dict) or not compact_text(risk.get("risk")) or not compact_text(risk.get("mitigation")):
+                    errors.append(f"{card_path}: risks[{index}] needs risk and mitigation")
+        distribution = card.get("distribution")
+        if not isinstance(distribution, dict) or not isinstance(distribution.get("paid"), list) or not isinstance(distribution.get("free"), list):
+            errors.append(f"{card_path}: distribution needs paid and free lists")
+        if contains_placeholder(card):
+            errors.append(f"{card_path}: unresolved placeholder")
+
+    if card_doc_path.is_file():
+        card_doc = read_text(card_doc_path)
+        headings = (
+            "Description", "Owner", "License", "Use Case", "Deployment Geography",
+            "Requirements", "Known Risks", "References", "Skill Output",
+            "Skill Version", "Ethical Considerations", "User Cases",
+            "Dimension Map", "Pricing Basis", "Distribution",
+        )
+        for heading in headings:
+            if not re.search(rf"(?mi)^#+\s+{re.escape(heading)}", card_doc):
+                errors.append(f"{card_doc_path}: missing '{heading}' section")
+        if re.search(r"\bTODO\b|\{[^}]+\}", card_doc, re.I):
+            errors.append(f"{card_doc_path}: unresolved placeholder")
+
+    if cases_path.is_file():
+        try:
+            cases = json.loads(read_text(cases_path))
+        except json.JSONDecodeError as exc:
+            errors.append(f"{cases_path}: invalid JSON: {exc}")
+            cases = []
+        if not isinstance(cases, list) or not cases:
+            errors.append(f"{cases_path}: at least one user case is required")
+        else:
+            for index, case in enumerate(cases):
+                label = f"{cases_path}: cases[{index}]"
+                if not isinstance(case, dict):
+                    errors.append(f"{label}: expected a mapping")
+                    continue
+                for key in ("title", "description", "input", "prompt", "output"):
+                    if not has_content(case.get(key)):
+                        errors.append(f"{label}: '{key}' is required")
+                if contains_placeholder(case):
+                    errors.append(f"{label}: unresolved placeholder")
+
+    pricing = load_yaml(pricing_path, errors) if pricing_path.is_file() else None
+    if pricing is not None:
+        if pricing.get("schema") != PRICING_CARD_SCHEMA:
+            errors.append(f"{pricing_path}: schema must be {PRICING_CARD_SCHEMA}")
+        for key in ("model", "currency", "list_price_cny", "basis", "boundary", "review_trigger", "confidence"):
+            if key not in pricing or (key != "list_price_cny" and not has_content(pricing.get(key))):
+                errors.append(f"{pricing_path}: required field '{key}' is missing or empty")
+        if contains_placeholder(pricing):
+            errors.append(f"{pricing_path}: unresolved placeholder")
+
+
 def validate_kit(root: Path, skill_names: set[str], errors: list[str]) -> None:
     manifest = root / "kit.yaml"
     if not manifest.exists():
@@ -261,6 +380,10 @@ def validate_source(root: Path, errors: list[str]) -> None:
     names = {compact_text(data.get("name")) for _, data in parsed}
     if len(names) != len(parsed):
         errors.append(f"{root}: every embedded Skill must have a unique name")
+    for path, data in parsed:
+        metadata = data.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("card_standard") == CARD_STANDARD:
+            validate_card_bundle(path.parent, errors)
     validate_kit(root, names, errors)
 
     readme = root / "README.md"

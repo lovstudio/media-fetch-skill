@@ -34,6 +34,12 @@ DEFAULTS: dict[str, Any] = {
         "complete",
         "theatrical",
     ],
+    "transport_backends": ["qbittorrent", "aria2"],
+    "aria2_binary": "aria2c",
+    "aria2_listen_port": 53555,
+    "aria2_max_peers": 200,
+    "aria2_max_restarts": 2,
+    "subtitle_repair": "match-exact-release",
     "qbittorrent_url": "http://127.0.0.1:8080",
     "qbittorrent_username": "admin",
 }
@@ -45,6 +51,11 @@ ENV_MAP = {
     "reserve_free_gib": "MEDIA_FETCH_RESERVE_FREE_GIB",
     "parallel_probes": "MEDIA_FETCH_PARALLEL_PROBES",
     "slow_speed_mib_s": "MEDIA_FETCH_SLOW_SPEED_MIB_S",
+    "transport_backends": "MEDIA_FETCH_TRANSPORT_BACKENDS",
+    "aria2_binary": "MEDIA_FETCH_ARIA2_BIN",
+    "aria2_listen_port": "MEDIA_FETCH_ARIA2_LISTEN_PORT",
+    "aria2_max_peers": "MEDIA_FETCH_ARIA2_MAX_PEERS",
+    "aria2_max_restarts": "MEDIA_FETCH_ARIA2_MAX_RESTARTS",
     "qbittorrent_url": "QBITTORRENT_URL",
     "qbittorrent_username": "QBITTORRENT_USERNAME",
 }
@@ -76,6 +87,8 @@ def coerce(value: str, template: Any) -> Any:
         return int(value)
     if isinstance(template, float):
         return float(value)
+    if isinstance(template, list):
+        return [item.strip() for item in value.split(",") if item.strip()]
     return value
 
 
@@ -93,7 +106,12 @@ def resolve(profile: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any
     for key, env_name in ENV_MAP.items():
         if env_name in os.environ:
             result[key] = coerce(os.environ[env_name], DEFAULTS[key])
-    result.update({key: value for key, value in overrides.items() if value is not None})
+    for key, value in overrides.items():
+        if value is None:
+            continue
+        if key in DEFAULTS:
+            value = coerce(value, DEFAULTS[key]) if isinstance(value, str) else value
+        result[key] = value
     return {key: expand_value(key, value) for key, value in result.items()}
 
 
@@ -108,6 +126,11 @@ def parser() -> argparse.ArgumentParser:
         cmd.add_argument("--reserve-free-gib", type=float)
         cmd.add_argument("--parallel-probes", type=int)
         cmd.add_argument("--slow-speed-mib-s", type=float)
+        cmd.add_argument("--transport-backends")
+        cmd.add_argument("--aria2-binary")
+        cmd.add_argument("--aria2-listen-port", type=int)
+        cmd.add_argument("--aria2-max-peers", type=int)
+        cmd.add_argument("--aria2-max-restarts", type=int)
         cmd.add_argument("--json", action="store_true")
         if name == "init":
             cmd.add_argument("--write", action="store_true")
@@ -125,6 +148,11 @@ def main() -> int:
         "reserve_free_gib": args.reserve_free_gib,
         "parallel_probes": args.parallel_probes,
         "slow_speed_mib_s": args.slow_speed_mib_s,
+        "transport_backends": args.transport_backends,
+        "aria2_binary": args.aria2_binary,
+        "aria2_listen_port": args.aria2_listen_port,
+        "aria2_max_peers": args.aria2_max_peers,
+        "aria2_max_restarts": args.aria2_max_restarts,
     }
     resolved = resolve(profile, overrides)
 

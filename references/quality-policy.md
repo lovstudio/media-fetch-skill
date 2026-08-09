@@ -12,6 +12,8 @@ The default `balanced` mode maximizes useful viewing quality under a size guardr
 6. Verified Simplified Chinese and English subtitles.
 7. Current source health and sustained acquisition prospects.
 8. Size and storage fit.
+9. Evidence quality: advertised health is provisional; observed speed and final
+   stream inspection decide whether the release is actually ready.
 
 ## Edition rules
 
@@ -48,6 +50,8 @@ aggregate size before storage preflight.
 - `中字`, `双语`, `CHS`, or `ENG` in a filename is discovery evidence only.
 - External subtitles should match exact release timing or be checked against duration
   and several scene boundaries before final acceptance.
+- A missing `zh-Hans` stream is a warning on the media verdict until an exact-release
+  SRT is matched and validated. Keep `subtitle_status` separate from `verification_status`.
 - Image-based subtitles satisfy language coverage when the target player supports them;
   text subtitles are more portable and searchable.
 

@@ -43,6 +43,12 @@ ${SKILL_PROFILE_PATH:-$HOME/.skill-publisher/skills/profile.json}
       "complete",
       "theatrical"
     ],
+    "transport_backends": ["qbittorrent", "aria2"],
+    "aria2_binary": "aria2c",
+    "aria2_listen_port": 53555,
+    "aria2_max_peers": 200,
+    "aria2_max_restarts": 2,
+    "subtitle_repair": "match-exact-release",
     "qbittorrent_url": "http://127.0.0.1:8080",
     "qbittorrent_username": "admin"
   }
@@ -70,6 +76,11 @@ export MEDIA_FETCH_MAX_EPISODE_SIZE_GIB="6"
 export MEDIA_FETCH_RESERVE_FREE_GIB="15"
 export MEDIA_FETCH_PARALLEL_PROBES="3"
 export MEDIA_FETCH_SLOW_SPEED_MIB_S="1.0"
+export MEDIA_FETCH_TRANSPORT_BACKENDS="qbittorrent,aria2"
+export MEDIA_FETCH_ARIA2_BIN="aria2c"
+export MEDIA_FETCH_ARIA2_LISTEN_PORT="53555"
+export MEDIA_FETCH_ARIA2_MAX_PEERS="200"
+export MEDIA_FETCH_ARIA2_MAX_RESTARTS="2"
 export QBITTORRENT_URL="http://127.0.0.1:8080"
 export QBITTORRENT_USERNAME="admin"
 export QBITTORRENT_PASSWORD="read-from-a-secure-source"

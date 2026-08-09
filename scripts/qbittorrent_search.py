@@ -129,18 +129,38 @@ def main() -> int:
         if key in seen:
             continue
         seen.add(key)
+        uri_without_query = uri.split("?", 1)[0].lower()
+        if uri.lower().startswith("magnet:"):
+            transport_inputs = ["magnet"]
+        elif uri_without_query.endswith(".torrent") and uri.lower().startswith(("http://", "https://")):
+            transport_inputs = ["torrent-url"]
+        elif uri_without_query.endswith(".torrent"):
+            transport_inputs = ["torrent-file"]
+        else:
+            transport_inputs = ["url"]
+        seeders = int(row.get("nbSeeders") or row.get("seeders") or 0)
+        leechers = int(row.get("nbLeechers") or row.get("leechers") or 0)
         candidates.append(
             {
                 "id": f"qbt-{index + 1}",
                 "name": str(row.get("fileName") or row.get("file_name") or key),
                 "uri": uri,
                 "info_hash": hash_value,
+                "transport_inputs": transport_inputs,
                 "source": str(row.get("siteUrl") or row.get("site_url") or "qBittorrent plugin"),
                 "source_url": str(row.get("descrLink") or row.get("descr_link") or ""),
                 "observed_at": observed,
                 "size_bytes": int(row.get("fileSize") or row.get("file_size") or 0),
-                "seeders": int(row.get("nbSeeders") or row.get("seeders") or 0),
-                "leechers": int(row.get("nbLeechers") or row.get("leechers") or 0),
+                "seeders": seeders,
+                "leechers": leechers,
+                "source_health": {
+                    "advertised_seeders": seeders,
+                    "advertised_leechers": leechers,
+                    "observed_peers": None,
+                    "observed_at": observed,
+                    "sustained_speed_bytes_per_second": None,
+                    "metadata_ready": False,
+                },
                 "metadata_confidence": "filename",
                 "trusted_source": False,
             }

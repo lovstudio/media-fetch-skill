@@ -5,12 +5,12 @@ description: >
 license: MIT
 metadata:
   author: contributors
-  version: "0.1.0"
+  version: "0.2.0"
   tags:
     - release-ranking
     - video-quality
     - subtitle-selection
-  compatibility: "Python 3.9+; consumes the Media Fetch candidate JSON schema."
+  compatibility: "Python 3.9+; consumes the Media Fetch candidate JSON schema and separates advertised from observed health."
   dependencies:
     - python>=3.9
 ---
@@ -19,6 +19,8 @@ metadata:
 
 Choose for viewing value, not label prestige: confirm the cut, then balance useful
 detail, efficient encoding, size, language coverage, current health, and evidence.
+Treat advertised seeders as a discovery hint and observed throughput as an acquisition
+signal; retain both in the decision for later review.
 
 ## Triggers
 
@@ -80,6 +82,9 @@ audio; treat dubs as additional value rather than a replacement unless requested
 - When choice is needed, present at most three options with edition, resolution/codec,
   size, subtitle status, runtime evidence, and health.
 - Preserve the complete scored list in `DECISION_JSON` for acquisition fallback.
+- Preserve a subtitle gap as an explicit warning. Missing `zh-Hans` may open the
+  exact-release subtitle branch after media verification; it does not silently lower
+  the release identity claim.
 
 ## Dependencies
 

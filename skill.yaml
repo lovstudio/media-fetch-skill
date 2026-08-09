@@ -1,19 +1,10 @@
 schema: skill-manifest/v1
 id: sgc-media-fetch
-version: 0.1.0
+version: 0.2.0
 runtime: skill-runtime/v1
 context:
   profile:
-    fields:
-    - path: identity.name
-      required: true
-      question: 如果本次输出需要品牌身份，请提供品牌名称。
-    - path: identity.logo
-      required: false
-      question: 如果需要使用品牌 Logo，请提供 Logo 地址或文件路径。
-    - path: brand.tone
-      required: false
-      question: 如果已有品牌语气或审美关键词，请提供它们。
+    fields: []
   preferences:
     namespace: sgc_media_fetch
     fields:
@@ -23,6 +14,12 @@ context:
     - path: user.timezone
       required: false
       question: 需要使用哪个时区处理日期和时间？
+    - path: media_fetch.transport_backends
+      required: false
+      question: 是否保留 qBittorrent 优先、aria2 续传的默认下载后端顺序？
+    - path: media_fetch.preferred_subtitles
+      required: false
+      question: 需要优先验收哪些字幕语言？
   interaction:
     ask_missing: true
     max_questions: 1

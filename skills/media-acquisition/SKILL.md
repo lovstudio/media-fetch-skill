@@ -5,13 +5,14 @@ description: >
 license: MIT
 metadata:
   author: contributors
-  version: "0.1.0"
+  version: "0.2.0"
   tags:
     - storage-preflight
     - qbittorrent
+    - aria2
     - download-monitoring
     - failover
-  compatibility: "Python 3.9+ and qBittorrent 5.x Web API."
+  compatibility: "Python 3.9+; qBittorrent 5.x Web API with aria2 1.36+ as resumable fallback."
   dependencies:
     - python>=3.9
     - qbittorrent>=5.0
@@ -20,6 +21,8 @@ metadata:
 # Media Acquisition
 
 Treat download as an observed job with recovery, not a fire-and-forget client action.
+Use qBittorrent for integrated discovery and initial probes, with aria2 available as a
+same-input resumable transport when a swarm behaves better outside qBittorrent.
 
 ## Triggers
 
@@ -61,7 +64,8 @@ payloads can be cleaned without broad path deletion.
 
 Run `scripts/qbittorrent_acquire.py`. Ignore the warm-up window when comparing. Score
 sustained speed, availability, peers, progress, and ETA. A candidate with a brief burst
-followed by zero is weaker than a stable source.
+followed by zero is weaker than a stable source. Keep advertised seeders and observed
+health in separate fields.
 
 ### Step 4: Continue and recover
 
@@ -69,6 +73,16 @@ followed by zero is weaker than a stable source.
 - Provide a user progress update at least once per minute while tools are active.
 - If progress and traffic remain below thresholds for `stall_seconds`, pause the
   current task and resume the next proven candidate.
+- If the same Magnet or Torrent input is better served by aria2, run:
+
+  ```bash
+  python3 "$KIT_DIR/scripts/aria2_acquire.py" \
+    --input INPUT --job-id JOB_ID --output-dir OUTPUT_DIR \
+    --result ACQUISITION_JSON --watch --no-proxy
+  ```
+
+  Keep the `.aria2` state in the isolated job directory, record the backend switch,
+  and verify the final payload before relocation.
 - If the complete candidate list is exhausted, preserve the best paused job, return to
   discovery for the next wave, preflight the incremental probe budget, and continue.
 - Use a finite configured search wave per process; the agent owns the outer retry loop

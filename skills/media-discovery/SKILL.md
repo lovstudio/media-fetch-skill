@@ -5,12 +5,12 @@ description: >
 license: MIT
 metadata:
   author: contributors
-  version: "0.1.0"
+  version: "0.2.0"
   tags:
     - media-search
     - dht
     - candidate-normalization
-  compatibility: "Agent runtime with web research; optional qBittorrent search API or Rats Search."
+  compatibility: "Agent runtime with web research; optional qBittorrent search API, Rats Search, and Torrent inputs."
   dependencies:
     - python>=3.9
 ---
@@ -18,7 +18,8 @@ metadata:
 # Media Discovery
 
 Identify the requested work before collecting releases, then return normalized,
-deduplicated candidates with evidence kept separate from search-result claims.
+deduplicated candidates with evidence kept separate from search-result claims. Keep
+Magnet, local Torrent, and remote `.torrent` inputs usable for later transport choice.
 
 ## Triggers
 
@@ -69,8 +70,11 @@ queries; avoid one over-constrained query that hides viable candidates.
 ### Step 4: Normalize and deduplicate
 
 - Emit UTF-8 JSON matching `$KIT_DIR/references/candidate-schema.md`.
-- Deduplicate Magnet entries by normalized info hash, then by release identity.
+- Deduplicate Magnet entries by normalized info hash, then by release identity. A
+  Torrent URL may have a null hash until metadata is resolved; preserve the input.
 - Preserve `source`, `source_url`, observed time, and edition evidence.
+- Preserve advertised seeders separately from live observation fields; discovery data
+  never counts as sustained download health.
 - Infer filename features conservatively; mark inferred values with
   `metadata_confidence: filename`.
 - Retain at least three healthy candidates when available so acquisition can race

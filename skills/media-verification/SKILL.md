@@ -5,12 +5,12 @@ description: >
 license: MIT
 metadata:
   author: contributors
-  version: "0.1.0"
+  version: "0.2.0"
   tags:
     - ffprobe
     - media-validation
     - subtitle-audit
-  compatibility: "Python 3.9+ and ffprobe from FFmpeg."
+  compatibility: "Python 3.9+ and ffprobe from FFmpeg; optional exact-release subtitle handoff."
   dependencies:
     - python>=3.9
     - ffprobe
@@ -19,7 +19,8 @@ metadata:
 # Media Verification
 
 Confirm the local artifact, selected edition, and language coverage before declaring
-the request complete.
+the request complete. A missing Simplified Chinese stream opens a subtitle handoff,
+while the media artifact retains its own technical verdict.
 
 ## Triggers
 
@@ -67,7 +68,9 @@ Record conflicts between filename claims and observed duration.
 
 If preferred subtitle streams are absent, look for synchronized external subtitles
 matching the exact release or runtime. Store beside the media using player-compatible
-naming and inspect its declared language. Do not label unsynchronized text as complete.
+naming and inspect its declared language. Follow `references/subtitle-handoff.md` for
+UTF-8 SRT and timing preservation, then consult `sgc-subtitle-freedom-skill` only for
+the requested subtitle operation. Do not label unsynchronized text as complete.
 
 ### Step 4: Issue the verdict
 

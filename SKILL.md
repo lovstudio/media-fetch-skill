@@ -1,21 +1,26 @@
 ---
 name: sgc-media-fetch
 description: >
-  自动检索、比较并下载电影、剧集或其他长视频，优先高质量版本、合适体积与中英字幕，完成磁盘预检、并行测速、慢源切换和媒体验收；适用于“帮我找并下载这部电影”、"find and download the best release"。
+  自动检索、比较并下载电影、剧集或其他长视频，结合 qBittorrent 与 aria2 做多源测速、可恢复续传、慢源切换、容量预检、剪辑版核验与字幕验收；适用于“帮我找并下载这部电影”、"find and download the best release"。
 license: MIT
 metadata:
   author: contributors
-  version: "0.1.0"
+  version: "0.2.0"
   tags:
     - media-discovery
     - release-selection
     - download-orchestration
     - quality-control
-  compatibility: "Portable Agent Skills format; Python 3.9+, qBittorrent 5.x Web API, and ffprobe recommended."
+    - transport-fallback
+    - resumable-download
+    - subtitle-handoff
+  card_standard: "lovstudio/skill-card/v1"
+  compatibility: "Portable Agent Skills format; Python 3.9+, qBittorrent 5.x Web API, aria2 optional, and ffprobe recommended."
   dependencies:
     - python>=3.9
     - pyyaml
     - qbittorrent>=5.0
+    - aria2>=1.36 (optional fallback)
     - ffprobe
 ---
 
@@ -53,6 +58,19 @@ the completed file.
   different content, or the top candidates are close enough that taste decides.
 - Never begin payload transfer before the destination capacity check passes.
 - Keep observing an active job. A task added to a client is not a completed result.
+- Completion means that the final local payload exists and the verification report is
+  written. A client-reported 100% is only an intermediate signal.
+- Keep advertised seeders, observed peers, metadata readiness, received bytes, and
+  sustained speed as separate evidence fields. A large seeder count is not a speed
+  promise.
+- Use qBittorrent for discovery and first probes, then hand the same Magnet or Torrent
+  input to aria2 when the source is healthier there. Reuse the `.aria2` continuation
+  state and record every transport switch; do not create a second full payload by
+  accident.
+- A missing `zh-Hans` stream is a recoverable subtitle gap, not a reason to mislabel
+  the media. The subtitle branch may consult `sgc-subtitle-freedom-skill` for
+  timestamp-preserving UTF-8 SRT handling. Its English-learning gloss and ASS modes
+  stay opt-in; plain Chinese subtitle delivery remains a separate, clearly named SRT.
 
 ## User configuration
 
@@ -78,12 +96,12 @@ Load the selected module completely before acting:
 
 ### Step 0: Resolve runtime and select a pipeline
 
-1. Resolve `SKILL_DIR`, `KIT_DIR`, configuration, qBittorrent connectivity, and
-   `ffprobe` availability.
+1. Resolve `SKILL_DIR`, `KIT_DIR`, configuration, qBittorrent and aria2 availability,
+   and `ffprobe`. Treat aria2 as the resumable fallback transport.
 2. On first use, bootstrap missing stable dependencies through the platform's native
-   package manager, bind the qBittorrent WebUI to loopback only, generate a strong
-   credential, and store it in the operating system credential store. Reuse an
-   existing compatible client instead when present.
+   package manager. Keep qBittorrent's WebUI on loopback and its credential in the
+   operating system credential store. Reuse an existing compatible client instead
+   when present; do not put secrets in profile or reports.
 3. Preserve existing client tasks. Every task created by this Skill must receive a
    unique job tag and an isolated probe directory.
 4. Select `full` for a title request, `choose` for comparison only, `download-known`
@@ -100,7 +118,9 @@ omitted values from the portable profile. Do not ask the user to choose tooling.
 
 Run the discovery module. Use at least two independent discovery paths when possible:
 the qBittorrent search API, a local DHT index such as Rats Search, direct web research,
-or user-supplied links. Deduplicate by info hash and canonical release identity.
+or user-supplied links. Deduplicate by info hash and canonical release identity. Preserve
+a `.torrent` URL or local Torrent path even when its info hash is not known until
+metadata resolution.
 
 For title and edition truth, prefer distributor, studio, disc, catalog, or reliable
 release metadata. Keep search-result claims separate from verified facts.
@@ -118,7 +138,8 @@ Run the selection module and `scripts/rank_candidates.py`. Apply
 ### Step 4: Preflight destination capacity
 
 Resolve the destination, candidate size, probe concurrency, temporary probe budget,
-and free-space reserve. Run `scripts/storage_preflight.py` before starting transfers.
+fallback resume allowance, and free-space reserve. Run `scripts/storage_preflight.py`
+before starting either backend.
 
 If capacity is short, report available, required, and shortfall immediately. Offer the
 best smaller candidate or a different destination, then wait for that user-facing
@@ -132,11 +153,15 @@ Run the acquisition module and `$KIT_DIR/references/acquisition-policy.md`.
 2. Observe warm speed, sustained speed, availability, peers, metadata readiness, and
    ETA; a short burst alone does not win.
 3. Pause non-winners, move the winner to the final destination, and continue polling.
-4. If the winner stalls beyond the configured threshold, resume the next proven
-   candidate. If all candidates are slow, return to discovery for another wave.
-5. Keep the terminal session alive and poll at intervals short enough to provide the
+4. If the winner stalls beyond the configured threshold, pause it and first try the
+   next proven candidate. When the same Magnet/Torrent is better served by another
+   transport, run `scripts/aria2_acquire.py` with the same input and job identity so
+   partial state can continue. Use DHT, PeX, LSD, configured trackers, and direct
+   connections; record the reason, backend, and observed rate for each switch.
+5. If all candidates are slow, return to discovery for another wave.
+6. Keep the terminal session alive and poll at intervals short enough to provide the
    user a progress update at least once per minute during active work.
-6. Clean only exact job-tagged losing tasks and their isolated probe files after the
+7. Clean only exact job-tagged losing tasks and their isolated probe files after the
    final candidate is complete. Leave pre-existing client tasks untouched.
 
 ### Step 6: Verify the completed media
@@ -147,16 +172,19 @@ Run the verification module and `scripts/verify_media.py`.
   audio tracks, subtitle streams, and duration close to the selected edition.
 - Inspect every episode for episodic requests; a season folder is complete only when
   the requested episode set is present.
-- When preferred subtitles are missing, search for a matching release or synchronized
-  subtitle, add it beside the media, and verify naming plus duration alignment.
+- When preferred subtitles are missing, search for a subtitle from the exact release
+  or a synchronized subtitle checked against duration and scene boundaries. For a
+  Simplified Chinese SRT handoff, preserve cue timing, UTF-8, source immutability,
+  and adjacent naming as described in `references/subtitle-handoff.md`; do not create
+  an English-learning gloss or ASS file unless explicitly requested.
 - Recheck final free space and ensure no partial suffix remains on the primary file.
 
 ### Step 7: Report the result
 
 Lead with completion status and the exact local path. Include title/edition, video and
-audio summary, subtitle coverage, final size, source health observed, elapsed time,
-and any remaining evidence gap. Distinguish “download complete” from “quality and
-edition verified”.
+audio summary, subtitle coverage, final size, advertised versus observed source
+health, transport trace, elapsed time, and any remaining evidence gap. Distinguish
+`download_status`, `verification_status`, and `subtitle_status`.
 
 ## References
 
@@ -164,11 +192,14 @@ edition verified”.
 - `$KIT_DIR/references/quality-policy.md` — edition, picture, codec, size, language, and ambiguity rules.
 - `$KIT_DIR/references/acquisition-policy.md` — capacity, probing, monitoring, switching, and cleanup rules.
 - `$KIT_DIR/references/user-config.md` — portable defaults and secrets handling.
+- `$KIT_DIR/references/subtitle-handoff.md` — Simplified Chinese SRT matching and the
+  opt-in handoff to `sgc-subtitle-freedom-skill`.
 
 ## Dependencies
 
 - Python 3.9+ for deterministic helpers.
-- qBittorrent 5.x with WebUI enabled for integrated search and acquisition.
+- qBittorrent 5.x with WebUI enabled for integrated search and first acquisition.
+- aria2 1.36+ for resumable fallback acquisition; it is optional when qBittorrent is healthy.
 - Search plugins or another discovery adapter for title search.
 - `ffprobe` from FFmpeg for final stream and duration inspection.
 - Optional Rats Search for independent DHT discovery.

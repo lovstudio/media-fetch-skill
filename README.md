@@ -1,8 +1,8 @@
 # sgc-media-fetch
 
-![Version](https://img.shields.io/badge/version-0.1.0-CC785C)
+![Version](https://img.shields.io/badge/version-0.2.0-CC785C)
 
-一键完成长视频的检索、版本选择、磁盘预检、多源测速下载、慢源切换和文件验收。
+一键完成长视频的检索、版本选择、磁盘预检、多源测速下载、可恢复续传、慢源切换和文件验收。
 
 ## 本地安装
 
@@ -41,6 +41,8 @@ python3 scripts/media_config.py init --write
 - “这个 Magnet 帮我下载；先确认磁盘够用，太慢就自动换另一个版本。”
 
 自然语言调用默认运行 `full` 流水线。已有链接使用 `download-known`；本地文件验收使用 `verify`。
+qBittorrent 负责集成搜索与首轮测速，aria2 负责同一 Magnet/Torrent 的续传兜底。
+每次切换都写入 transport trace，不把客户端进度当作最终完成证据。
 
 ## qBittorrent 连接
 
@@ -60,6 +62,9 @@ python3 scripts/qbittorrent_search.py --query "TITLE YEAR" --output candidates.j
 python3 scripts/rank_candidates.py --input candidates.json --output decision.json
 python3 scripts/storage_preflight.py --decision decision.json
 python3 scripts/qbittorrent_acquire.py --decision decision.json --wait-complete --result acquisition.json
+python3 scripts/aria2_acquire.py \
+  --input INPUT --job-id JOB_ID --output-dir "$HOME/Downloads/Media" \
+  --result aria2-acquisition.json --watch --no-proxy
 python3 scripts/verify_media.py --path "$HOME/Downloads/Media" --output verification.json
 ```
 
@@ -86,6 +91,22 @@ python3 scripts/qbittorrent_acquire.py \
 - qBittorrent 5.x WebUI（搜索、测速和下载）
 - FFmpeg / `ffprobe`（媒体验收）
 - 可选：Rats Search（独立 DHT 检索）
+- 可选：aria2 1.36+（qBittorrent 慢源时的续传后端）
+
+## 字幕分支
+
+默认验收 `zh-Hans` 与 `en`。如果成片只有英文字幕，先匹配同一发行版本的外置
+SRT，再交给 `sgc-subtitle-freedom-skill` 做时间轴、UTF-8 和 SRT 保真处理。该
+Skill 的英文学习提示、人物卡和 ASS 样式均需要明确开启；Media Fetch 不会把它们
+作为简中字幕输出。
+
+## 用户案例
+
+《指环王》三部曲的实际任务验证了这条链路：qBittorrent 搜索并测速后，主候选在
+首轮实测偏慢，aria2 使用同一信息哈希、DHT/PeX/LSD 与 Tracker 续传，最终得到
+3 个可读的 1080p HEVC 文件。下载报告为 `complete`，媒体验收为
+`passed_with_warnings`，唯一开放项是原发行文件未嵌入 `zh-Hans`，因此报告继续
+保留字幕缺口而不是虚报“双语完成”。完整脱敏证据位于 `cases/evidence/`。
 
 ## License
 
