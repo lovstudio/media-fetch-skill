@@ -1,4 +1,4 @@
-# lovstudio-media-fetch
+# sgc-media-fetch
 
 ![Version](https://img.shields.io/badge/version-0.1.0-CC785C)
 
@@ -10,9 +10,9 @@
 
 ```bash
 export SKILL_SOURCE_DIR="$(pwd)"
-mkdir -p "${LOVSTUDIO_SKILLS_INSTALL_DIR:?请设置本地 Skills 目录}"
+mkdir -p "${SKILL_SKILLS_INSTALL_DIR:?请设置本地 Skills 目录}"
 ln -s "$SKILL_SOURCE_DIR" \
-  "$LOVSTUDIO_SKILLS_INSTALL_DIR/lovstudio-media-fetch"
+  "$SKILL_SKILLS_INSTALL_DIR/sgc-media-fetch"
 ```
 
 安装链接必须解析到当前源码目录；打包文件不等于本地安装。

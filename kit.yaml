@@ -1,19 +1,22 @@
 name: media-fetch
 display_name: "Media Fetch"
 version: "0.1.0"
-entrypoint: lovstudio-media-fetch
+entrypoint: sgc-media-fetch
+runtime: skill-runtime/v1
+profile:
+  manifest: skill.yaml
 modules:
   - id: media-discovery
-    skill: lovstudio-media-discovery
+    skill: sgc-media-discovery
     path: skills/media-discovery
   - id: media-selection
-    skill: lovstudio-media-selection
+    skill: sgc-media-selection
     path: skills/media-selection
   - id: media-acquisition
-    skill: lovstudio-media-acquisition
+    skill: sgc-media-acquisition
     path: skills/media-acquisition
   - id: media-verification
-    skill: lovstudio-media-verification
+    skill: sgc-media-verification
     path: skills/media-verification
 pipelines:
   full:

@@ -1,10 +1,10 @@
 ---
-name: lovstudio-media-acquisition
+name: sgc-media-acquisition
 description: >
   在下载前检查磁盘空间，通过 qBittorrent 并行测试多个候选、选择持续速度更好的来源、观测进度并在停滞时切换；适用于“开始下载，太慢就换源”、"race sources and finish the download"。
 license: MIT
 metadata:
-  author: lovstudio
+  author: contributors
   version: "0.1.0"
   tags:
     - storage-preflight
@@ -85,3 +85,11 @@ Never delete by wildcard, parent directory, candidate name alone, or unresolved 
 qBittorrent 5.x with WebUI enabled. Connection values come from
 `QBITTORRENT_URL`, `QBITTORRENT_USERNAME`, `QBITTORRENT_PASSWORD`, or the shared
 profile; secrets stay outside committed source.
+
+## Runtime context (shared)
+
+运行前读取本 Skill 包的 `skill.yaml`，由宿主提供 `skill-runtime/v1` 上下文。字段解析顺序为：当前请求、项目上下文、个人 Preferences、品牌 Profile、通用默认值。
+
+- 只使用 Manifest 声明的字段；Profile 保存公开品牌事实，Preferences 保存个人工作偏好。
+- `required: true` 字段缺失时，按 Manifest 的问题配置向用户提出一个聚焦问题；用户明确同意后再保存回答。
+- 报错提供可复制的 `context_id`、字段路径与来源，诊断内容避开秘密、完整私人路径和原始配置。

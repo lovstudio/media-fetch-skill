@@ -33,7 +33,7 @@ class QBitClient:
         response = self.request(
             "/api/v2/auth/login", {"username": username, "password": password}, raw=True
         )
-        if response.strip() != "Ok.":
+        if response.strip() not in {"", "Ok."}:
             raise RuntimeError(f"qBittorrent login failed: {response[:120]}")
 
     def request(

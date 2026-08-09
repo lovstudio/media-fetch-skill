@@ -1,10 +1,10 @@
 ---
-name: lovstudio-media-fetch
+name: sgc-media-fetch
 description: >
   自动检索、比较并下载电影、剧集或其他长视频，优先高质量版本、合适体积与中英字幕，完成磁盘预检、并行测速、慢源切换和媒体验收；适用于“帮我找并下载这部电影”、"find and download the best release"。
 license: MIT
 metadata:
-  author: lovstudio
+  author: contributors
   version: "0.1.0"
   tags:
     - media-discovery
@@ -172,3 +172,11 @@ edition verified”.
 - Search plugins or another discovery adapter for title search.
 - `ffprobe` from FFmpeg for final stream and duration inspection.
 - Optional Rats Search for independent DHT discovery.
+
+## Runtime context (shared)
+
+运行前读取本 Skill 包的 `skill.yaml`，由宿主提供 `skill-runtime/v1` 上下文。字段解析顺序为：当前请求、项目上下文、个人 Preferences、品牌 Profile、通用默认值。
+
+- 只使用 Manifest 声明的字段；Profile 保存公开品牌事实，Preferences 保存个人工作偏好。
+- `required: true` 字段缺失时，按 Manifest 的问题配置向用户提出一个聚焦问题；用户明确同意后再保存回答。
+- 报错提供可复制的 `context_id`、字段路径与来源，诊断内容避开秘密、完整私人路径和原始配置。
