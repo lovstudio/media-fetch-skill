@@ -108,9 +108,16 @@ def build_command(args: argparse.Namespace, probe_root: Path, binary: str, track
 
 def snapshot(probe_root: Path) -> dict[str, Any]:
     files = media_files(probe_root)
+    stats = [item.stat() for item in files]
     return {
         "media_files": len(files),
-        "media_bytes_logical": sum(item.stat().st_size for item in files),
+        "media_bytes_logical": sum(info.st_size for info in stats),
+        "media_bytes_allocated": sum(
+            info.st_size
+            if getattr(info, "st_blocks", None) is None
+            else int(info.st_blocks) * 512
+            for info in stats
+        ),
         "control_files": [str(item.relative_to(probe_root)) for item in control_files(probe_root)],
     }
 
@@ -187,7 +194,7 @@ def main() -> int:
             started_monotonic = time.monotonic()
             last_sample_monotonic = started_monotonic
             last_progress_monotonic = started_monotonic
-            last_bytes = snapshot(probe_root)["media_bytes_logical"]
+            last_bytes = snapshot(probe_root)["media_bytes_allocated"]
             with log_path.open("a", encoding="utf-8") as log:
                 log.write(f"\n[{now()}] starting aria2: {' '.join(command)}\n")
                 log.flush()
@@ -204,11 +211,11 @@ def main() -> int:
                     state = snapshot(probe_root)
                     sample_monotonic = time.monotonic()
                     interval = max(0.001, sample_monotonic - last_sample_monotonic)
-                    delta_bytes = max(0, state["media_bytes_logical"] - last_bytes)
+                    delta_bytes = max(0, state["media_bytes_allocated"] - last_bytes)
                     observed_speed = delta_bytes / interval
                     if delta_bytes > 0:
                         last_progress_monotonic = sample_monotonic
-                        last_bytes = state["media_bytes_logical"]
+                        last_bytes = state["media_bytes_allocated"]
                     last_sample_monotonic = sample_monotonic
                     print(
                         json.dumps(
