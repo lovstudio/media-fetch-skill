@@ -1,3 +1,4 @@
 - aria2 进度与停滞判定必须读取 RPC 的 completedLength 和 downloadSpeed，不得用稀疏文件逻辑大小或 APFS 分配块数代替（2026-08-26, eb14185）
 - HLS 遇到单分片 5xx 时必须按分片重试并对照清单核齐数量，避免解复用器跳片后仍产出删节成片（2026-08-26, eb14185）
 - macOS 的 /usr/bin/trash 不接受 -- 选项，清理前先校验绝对路径并直接传入目标（2026-08-26, eb14185）
+- 直链或 aria2 成片交付后若 qBittorrent 是下载中心，必须为最终文件生成本地 torrent、执行 recheck 并保留 stoppedUP 归档记录（2026-08-26, ea15931）
