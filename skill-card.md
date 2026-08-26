@@ -56,7 +56,7 @@ remain separate fields.
 
 # Skill Version
 
-0.3.0. This release makes aria2 the primary transport, moves qBittorrent behind an
+0.4.0. This release makes aria2 the primary transport, moves qBittorrent behind an
 optional capability boundary, adds direct-URL routing and job-specific ports, and
 migrates legacy backend preferences.
 
