@@ -11,6 +11,7 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -80,7 +81,13 @@ def resolve_binary(value: str | None) -> str:
     return resolved
 
 
-def build_command(args: argparse.Namespace, probe_root: Path, binary: str, trackers: list[str]) -> list[str]:
+def build_command(
+    args: argparse.Namespace,
+    probe_root: Path,
+    binary: str,
+    trackers: list[str],
+    rpc_port: int,
+) -> list[str]:
     command = [
         binary,
         f"--dir={probe_root}",
@@ -92,6 +99,9 @@ def build_command(args: argparse.Namespace, probe_root: Path, binary: str, track
         "--enable-peer-exchange=true",
         f"--dht-listen-port={args.listen_port}",
         f"--listen-port={args.listen_port}",
+        "--enable-rpc=true",
+        "--rpc-listen-all=false",
+        f"--rpc-listen-port={rpc_port}",
         "--bt-tracker-connect-timeout=15",
         "--bt-tracker-interval=30",
         f"--bt-max-peers={args.max_peers}",
@@ -104,6 +114,36 @@ def build_command(args: argparse.Namespace, probe_root: Path, binary: str, track
         args.input,
     ]
     return command
+
+
+def rpc_transfer(rpc_port: int) -> dict[str, int] | None:
+    payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "media-fetch",
+            "method": "aria2.tellActive",
+            "params": [],
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{rpc_port}/jsonrpc",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            document = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    active = document.get("result") if isinstance(document, dict) else None
+    if not isinstance(active, list):
+        return None
+    return {
+        "completed_bytes": sum(int(item.get("completedLength") or 0) for item in active),
+        "download_speed_bytes_per_second": sum(
+            int(item.get("downloadSpeed") or 0) for item in active
+        ),
+    }
 
 
 def snapshot(probe_root: Path) -> dict[str, Any]:
@@ -135,6 +175,7 @@ def main() -> int:
     parser.add_argument("--job-id", required=True)
     parser.add_argument("--aria2-bin")
     parser.add_argument("--listen-port", type=int, default=53555)
+    parser.add_argument("--rpc-listen-port", type=int)
     parser.add_argument("--max-peers", type=int, default=200)
     parser.add_argument("--summary-interval", type=int, default=15)
     parser.add_argument("--poll-seconds", type=int, default=15)
@@ -160,7 +201,8 @@ def main() -> int:
     log_path = probe_root / "aria2.log"
     binary = resolve_binary(args.aria2_bin)
     trackers = load_trackers(args)
-    command = build_command(args, probe_root, binary, trackers)
+    rpc_port = args.rpc_listen_port or args.listen_port + 1
+    command = build_command(args, probe_root, binary, trackers, rpc_port)
     result: dict[str, Any] = {
         "schema_version": "1.0",
         "job_id": job_id,
@@ -172,6 +214,7 @@ def main() -> int:
         "started_at": now(),
         "status": "planned" if args.dry_run else "running",
         "trackers_count": len(trackers),
+        "rpc_port": rpc_port,
         "events": [],
     }
     if args.dry_run:
@@ -192,9 +235,8 @@ def main() -> int:
             stalled = False
             stall_reason = ""
             started_monotonic = time.monotonic()
-            last_sample_monotonic = started_monotonic
             last_progress_monotonic = started_monotonic
-            last_bytes = snapshot(probe_root)["media_bytes_allocated"]
+            last_completed_bytes = 0
             with log_path.open("a", encoding="utf-8") as log:
                 log.write(f"\n[{now()}] starting aria2: {' '.join(command)}\n")
                 log.flush()
@@ -210,19 +252,23 @@ def main() -> int:
                 while process.poll() is None and time.monotonic() < deadline:
                     state = snapshot(probe_root)
                     sample_monotonic = time.monotonic()
-                    interval = max(0.001, sample_monotonic - last_sample_monotonic)
-                    delta_bytes = max(0, state["media_bytes_allocated"] - last_bytes)
-                    observed_speed = delta_bytes / interval
+                    transfer = rpc_transfer(rpc_port) or {
+                        "completed_bytes": last_completed_bytes,
+                        "download_speed_bytes_per_second": 0,
+                    }
+                    completed_bytes = int(transfer["completed_bytes"])
+                    delta_bytes = max(0, completed_bytes - last_completed_bytes)
+                    observed_speed = int(transfer["download_speed_bytes_per_second"])
                     if delta_bytes > 0:
                         last_progress_monotonic = sample_monotonic
-                        last_bytes = state["media_bytes_allocated"]
-                    last_sample_monotonic = sample_monotonic
+                        last_completed_bytes = completed_bytes
                     print(
                         json.dumps(
                             {
                                 "event": "aria2_progress",
                                 "elapsed_seconds": int(max(0, sample_monotonic - started_monotonic)),
-                                "observed_speed_bytes_per_second": round(observed_speed),
+                                "completed_bytes": completed_bytes,
+                                "observed_speed_bytes_per_second": observed_speed,
                                 **state,
                             },
                         ensure_ascii=False,
@@ -240,7 +286,7 @@ def main() -> int:
                         stalled = True
                         stall_reason = (
                             f"no payload growth for {int(stalled_for)}s; "
-                            f"observed speed {observed_speed:.0f} B/s"
+                            f"observed speed {observed_speed} B/s"
                         )
                         result["events"].append(
                             {"at": now(), "type": "backend_stalled", "reason": stall_reason}
