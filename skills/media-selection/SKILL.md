@@ -5,7 +5,7 @@ description: >
 license: MIT
 metadata:
   author: contributors
-  version: "0.4.0"
+  version: "0.4.1"
   tags:
     - release-ranking
     - video-quality
@@ -15,7 +15,7 @@ metadata:
     - python
 ---
 
-# Media Selection
+# 影视选片 · Media Selection
 
 Choose for viewing value, not label prestige: confirm the cut, then balance useful
 detail, efficient encoding, size, language coverage, current health, and evidence.

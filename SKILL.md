@@ -8,7 +8,7 @@ compatibility: >
   qBittorrent 5.x Web API is an optional discovery, BitTorrent-management, and seeding adapter.
 metadata:
   author: contributors
-  version: "0.4.0"
+  version: "0.4.2"
   tags:
     - media-discovery
     - release-selection
@@ -26,7 +26,7 @@ metadata:
     - ffprobe
 ---
 
-# Media Fetch
+# 影视寻宝 · Media Finder
 
 Turn one natural-language request into a verified local media file. Search broadly,
 identify the actual cut, balance picture quality against size, check storage before

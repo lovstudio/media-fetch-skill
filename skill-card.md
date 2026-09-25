@@ -1,3 +1,5 @@
+# 影视寻宝 · Media Finder · Skill Card
+
 # Description
 
 `lov-media-fetch` turns a natural-language movie or series request into a normalized
